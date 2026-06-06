@@ -187,6 +187,7 @@ function renderAll() {
   renderCalendar(appState.currentYear, appState.currentMonth);
   renderQuote();
   renderCountdown();
+  if (typeof initWeather === 'function') initWeather();
 }
 
 function renderCalendar(year, month) {
@@ -239,6 +240,8 @@ function renderCalendar(year, month) {
         var mood = getMood(dateStr);
         if (mood) moodEmoji = '<span class="mood-emoji">' + mood + '</span>';
         hasEvents = getEvents(dateStr).length > 0;
+        // 法定休息日标记
+        var restDay = getRestDay(cellYear, cellMonth, cellDate);
       }
 
       var cls = 'day-cell';
@@ -247,13 +250,18 @@ function renderCalendar(year, month) {
       if (isWeekend && !isOther) cls += ' weekend';
       if (holidayBadge && !isOther) cls += ' holiday';
 
+      var restBadge = '';
+      if (!isOther && restDay) {
+        restBadge = '<span class="rest-badge' + (restDay === '班' ? ' workday' : '') + '">' + restDay + '</span>';
+      }
+
       var cell = document.createElement('div');
       cell.className = cls;
       cell.setAttribute('data-date', dateStr);
       cell.setAttribute('onclick', "openModal('" + dateStr + "')");
       cell.innerHTML = '<span class="solar-date">' + cellDate + '</span>' +
         '<span class="lunar-date">' + lunarDisplay + '</span>' +
-        holidayBadge + moodEmoji +
+        holidayBadge + restBadge + moodEmoji +
         (hasEvents ? '<span class="event-dot"></span>' : '');
       frag.appendChild(cell);
     }
