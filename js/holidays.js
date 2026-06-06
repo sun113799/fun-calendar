@@ -91,8 +91,12 @@ function getNextHoliday() {
 }
 
 // ===== 法定休息日（联网自动更新 + localStorage缓存） =====
-var _restDaysCache = null; // { restDays: Set, workDays: Set, until: timestamp }
-var REST_API_URL = 'https://raw.githubusercontent.com/sun113799/fun-calendar/master/holidays.json';
+var _restDaysCache = null;
+// 双源拉取：Gitee（国内秒开）优先，GitHub 备用
+var REST_URLS = [
+  'https://gitee.com/love-rampage-huochetr/calendar-holidays/raw/master/holidays.json',
+  'https://raw.githubusercontent.com/sun113799/fun-calendar/master/holidays.json',
+];
 
 function _ensureRestCache() {
   // 先读缓存
@@ -109,33 +113,47 @@ function _ensureRestCache() {
   return _restDaysCache;
 }
 
+function _tryFetch(url, callback) {
+  fetch(url + '?t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(data) { callback(data, url); })
+    .catch(function() { callback(null, url); });
+}
+
 function _fetchRestDays() {
-  try {
-    fetch(REST_API_URL + '?t=' + Date.now())
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var restSet = {};
-        var workSet = {};
-        var maxDate = '';
-        for (var year in data.restDays) {
-          for (var holiday in data.restDays[year]) {
-            data.restDays[year][holiday].forEach(function(d) {
-              restSet[d] = true; if (d > maxDate) maxDate = d;
-            });
-          }
-        }
-        for (var year in data.workDays) {
-          data.workDays[year].forEach(function(d) { workSet[d] = true; });
-        }
-        // 缓存7天或到最后一个节假日之后
-        var until = Date.now() + 7 * 86400000;
-        _restDaysCache = { restDays: restSet, workDays: workSet, until: until };
-        try { localStorage.setItem('fun_calendar_holidays', JSON.stringify(_restDaysCache)); } catch(e) {}
-      }).catch(function() {
-        // 网络失败，用内置兜底延长缓存
-        if (_restDaysCache) { _restDaysCache.until = Date.now() + 86400000; }
-      });
-  } catch(e) {}
+  var idx = 0;
+  function tryNext() {
+    if (idx >= REST_URLS.length) {
+      // 全部失败，延长缓存
+      if (_restDaysCache) { _restDaysCache.until = Date.now() + 86400000; }
+      return;
+    }
+    _tryFetch(REST_URLS[idx], function(data, url) {
+      if (data && data.restDays) {
+        processData(data);
+      } else {
+        idx++; tryNext();
+      }
+    });
+  }
+
+  function processData(data) {
+    var restSet = {};
+    var workSet = {};
+    for (var year in data.restDays) {
+      for (var holiday in data.restDays[year]) {
+        data.restDays[year][holiday].forEach(function(d) { restSet[d] = true; });
+      }
+    }
+    for (var year in data.workDays) {
+      data.workDays[year].forEach(function(d) { workSet[d] = true; });
+    }
+    var until = Date.now() + 7 * 86400000;
+    _restDaysCache = { restDays: restSet, workDays: workSet, until: until };
+    try { localStorage.setItem('fun_calendar_holidays', JSON.stringify(_restDaysCache)); } catch(e) {}
+  }
+
+  tryNext();
 }
 
 // 启动时拉取
