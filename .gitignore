@@ -1,10 +1,8 @@
 node_modules/
+android/
 .idea/
 *.log
 .DS_Store
 Thumbs.db
-android/app/build/
-android/.gradle/
-android/build/
-android/captures/
-android/local.properties
+*.apk
+*.stackdump
