@@ -30,14 +30,13 @@
 
     <!-- 日历卡片 -->
     <div class="calendar-card">
-      <!-- 月份导航 -->
-      <div class="calendar-nav">
+      <!-- 年月快速选择器 -->
+      <div class="date-picker-row">
         <button class="nav-btn prev-btn" title="上一月">◀</button>
-        <div class="month-year-display">
-          <span class="month-year-text" id="monthYearText">2026年 6月</span>
-        </div>
+        <select class="year-select" id="yearSelect"></select>
+        <select class="month-select" id="monthSelect"></select>
         <button class="nav-btn next-btn" title="下一月">▶</button>
-        <button class="today-btn" id="todayBtn">今天</button>
+        <button class="today-quick" id="todayBtn">今天</button>
       </div>
 
       <!-- 星期表头 -->

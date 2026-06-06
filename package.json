@@ -12,5 +12,8 @@
     "@capacitor/android": "^6.2.1",
     "@capacitor/cli": "^6.2.1",
     "@capacitor/core": "^6.2.1"
+  },
+  "dependencies": {
+    "@capacitor/local-notifications": "^8.2.0"
   }
 }

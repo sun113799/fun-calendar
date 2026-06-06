@@ -1,26 +1,36 @@
-// ===== 日程提醒系统 =====
-// 每30秒检查一次，匹配当前时间与事件设定的时间
-// iOS Safari 不支持 Web Notification，降级为页面内提示
+// ===== 原生通知系统（Capacitor LocalNotifications） =====
+// 在 APK 中使用 Android 原生通知，浏览器中降级为 Web Notification
 
 var NOTIFY_CHECK_INTERVAL = 30000;
 var notifyTimer = null;
 var notifiedEvents = {};
+var useNative = false;
+
+/** 初始化：检测是否在 Capacitor 环境中 */
+function initNotifyPlugin() {
+  // 检查 Capacitor 是否可用
+  if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications) {
+    useNative = true;
+    // 请求 Android 13+ 的通知权限
+    if (Capacitor.Plugins.LocalNotifications.requestPermissions) {
+      Capacitor.Plugins.LocalNotifications.requestPermissions().catch(function() {});
+    }
+    return true;
+  }
+  return false;
+}
 
 /** 请求通知权限 */
 async function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    console.log('此浏览器不支持通知功能');
-    return false;
-  }
+  if (initNotifyPlugin()) return true;
+  // 浏览器降级
+  if (!('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
   if (Notification.permission === 'denied') return false;
   try {
     var result = await Notification.requestPermission();
     return result === 'granted';
-  } catch (e) {
-    console.log('通知权限请求失败:', e);
-    return false;
-  }
+  } catch (e) { return false; }
 }
 
 /** 启动定时检查 */
@@ -30,15 +40,12 @@ function startNotificationChecker() {
   notifyTimer = setInterval(checkAndNotify, NOTIFY_CHECK_INTERVAL);
 }
 
-/** 停止定时检查 */
 function stopNotificationChecker() {
   if (notifyTimer) { clearInterval(notifyTimer); notifyTimer = null; }
 }
 
-/** 检查今天的事件，对到时间的发通知 */
+/** 检查今天的事件，匹配时间 */
 function checkAndNotify() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
   var today = new Date();
   var dateStr = getDateStr(today.getFullYear(), today.getMonth() + 1, today.getDate());
   var nowHour = today.getHours();
@@ -51,38 +58,44 @@ function checkAndNotify() {
     var notifyKey = dateStr + '|' + event.id;
     if (event.time === nowTime && !notifiedEvents[notifyKey]) {
       notifiedEvents[notifyKey] = true;
-      showNotification(event);
+      sendNotification(event);
     }
   });
 
-  // 清理非今天的通知记录
-  var todayKey = dateStr;
+  // 清理旧记录
   Object.keys(notifiedEvents).forEach(function(key) {
-    if (!key.startsWith(todayKey)) delete notifiedEvents[key];
+    if (!key.startsWith(dateStr)) delete notifiedEvents[key];
   });
 }
 
-/** 弹出系统通知 */
-function showNotification(event) {
-  var title = event.text;
-  var options = {
-    body: '主人~ 你设的提醒到时间啦！',
-    icon: './assets/icons/icon-192.png',
-    badge: './assets/icons/icon-192.png',
-    tag: event.id,
-    requireInteraction: true,
-    vibrate: [200, 100, 200],
-  };
-  try {
-    var n = new Notification(title, options);
-    n.onclick = function() { window.focus(); n.close(); };
-    setTimeout(function() { n.close(); }, 5000);
-  } catch (e) {
-    console.log('发送通知失败:', e);
+/** 发送通知（原生优先，浏览器降级） */
+function sendNotification(event) {
+  if (useNative && Capacitor.Plugins.LocalNotifications) {
+    Capacitor.Plugins.LocalNotifications.schedule({
+      notifications: [{
+        title: event.text,
+        body: '主人~ 你设的提醒到时间啦！',
+        id: parseInt(event.id.replace(/[^0-9]/g, '').slice(-8)) || Date.now() % 100000,
+        schedule: { at: new Date() },
+        sound: 'beep.wav',
+        smallIcon: 'ic_stat_calendar',
+      }]
+    }).catch(function() {});
+  } else if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      var n = new Notification(event.text, {
+        body: '主人~ 你设的提醒到时间啦！',
+        icon: './assets/icons/icon-192.png',
+        tag: event.id,
+        requireInteraction: true,
+        vibrate: [200, 100, 200],
+      });
+      n.onclick = function() { window.focus(); n.close(); };
+      setTimeout(function() { n.close(); }, 5000);
+    } catch (e) {}
   }
 }
 
-/** 页面可见性变化时重新检查 */
 document.addEventListener('visibilitychange', function() {
   if (!document.hidden) checkAndNotify();
 });

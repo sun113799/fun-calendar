@@ -1,11 +1,9 @@
-// ===== 趣味日历 v2 · 主应用逻辑 =====
-// 新增：PWA、通知、手势、安装引导、设置面板、时间选择器
+// ===== 趣味日历 v3 · 纯色可爱风 + 原生通知 =====
 
 var appState = {
   currentYear: new Date().getFullYear(),
   currentMonth: new Date().getMonth() + 1,
   selectedColor: '#FF9AA2',
-  viewMode: 'month', // 'month' | 'week'
 };
 
 var EVENT_COLORS = ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#B5EAD7', '#C4B5FD'];
@@ -15,6 +13,7 @@ var modalOpenDate = null;
 // ===== 初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
   initTheme();
+  initYearMonthSelects();
   renderAll();
   bindEvents();
   initSwipeGesture();
@@ -37,15 +36,46 @@ function bindEvents() {
   document.getElementById('eventInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') saveNewEvent();
   });
-
-  // 设置面板
-  var settingsBtn = document.getElementById('settingsBtn');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', function() {
-      var panel = document.getElementById('settingsPanel');
-      panel.classList.toggle('active');
+  var sb = document.getElementById('settingsBtn');
+  if (sb) {
+    sb.addEventListener('click', function() {
+      document.getElementById('settingsPanel').classList.toggle('active');
     });
   }
+}
+
+/** 初始化年月下拉选择器 */
+function initYearMonthSelects() {
+  var ys = document.getElementById('yearSelect');
+  var ms = document.getElementById('monthSelect');
+  // 年份：1900 ~ 2100
+  for (var y = 1900; y <= 2100; y++) {
+    var opt = document.createElement('option');
+    opt.value = y; opt.textContent = y + '年';
+    if (y === appState.currentYear) opt.selected = true;
+    ys.appendChild(opt);
+  }
+  // 月份：1~12
+  for (var m = 1; m <= 12; m++) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = m + '月';
+    if (m === appState.currentMonth) opt.selected = true;
+    ms.appendChild(opt);
+  }
+  ys.addEventListener('change', function() {
+    appState.currentYear = parseInt(ys.value);
+    renderAll();
+  });
+  ms.addEventListener('change', function() {
+    appState.currentMonth = parseInt(ms.value);
+    renderAll();
+  });
+}
+
+/** 更新下拉选择器的选中值 */
+function updateSelects() {
+  document.getElementById('yearSelect').value = appState.currentYear;
+  document.getElementById('monthSelect').value = appState.currentMonth;
 }
 
 // ===== 主题 =====
@@ -69,55 +99,39 @@ function initTheme() {
   });
 }
 
-// ===== PWA 安装 =====
+// ===== PWA =====
 var deferredPrompt = null;
-
 function initPWA() {
-  // 注册 Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-      .then(function(reg) { console.log('SW registered:', reg.scope); })
-      .catch(function(err) { console.log('SW failed:', err); });
+    navigator.serviceWorker.register('./sw.js').catch(function() {});
   }
 }
-
 window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault();
-  deferredPrompt = e;
+  e.preventDefault(); deferredPrompt = e;
   setTimeout(showInstallBanner, 2000);
 });
-
 function showInstallBanner() {
   if (window.matchMedia('(display-mode: standalone)').matches) return;
   if (document.querySelector('.install-banner')) return;
-
-  var banner = document.createElement('div');
-  banner.className = 'install-banner glass-card';
-  banner.innerHTML = '<span>📲 把日历装到手机上~</span>' +
+  var b = document.createElement('div');
+  b.className = 'install-banner';
+  b.innerHTML = '<span>📲 把日历装到手机上~</span>' +
     '<button class="btn-install" id="btnInstall">安装</button>' +
     '<button class="btn-dismiss" id="btnDismiss">以后再说</button>';
-  document.body.appendChild(banner);
-
+  document.body.appendChild(b);
   document.getElementById('btnInstall').onclick = async function() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      var result = await deferredPrompt.userChoice;
-      console.log('Install:', result.outcome);
-      deferredPrompt = null;
-    }
-    banner.remove();
+    if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+    b.remove();
   };
-  document.getElementById('btnDismiss').onclick = function() { banner.remove(); };
-  setTimeout(function() { if (banner.parentNode) banner.remove(); }, 8000);
+  document.getElementById('btnDismiss').onclick = function() { b.remove(); };
+  setTimeout(function() { if (b.parentNode) b.remove(); }, 8000);
 }
 
-// ===== 通知初始化 =====
+// ===== 通知 =====
 function initNotifications() {
   if (typeof requestNotificationPermission === 'function') {
     requestNotificationPermission().then(function(granted) {
-      if (granted && typeof startNotificationChecker === 'function') {
-        startNotificationChecker();
-      }
+      if (granted && typeof startNotificationChecker === 'function') startNotificationChecker();
     });
   }
   window.addEventListener('beforeunload', function() {
@@ -125,47 +139,33 @@ function initNotifications() {
   });
 }
 
-// ===== 渲染全部 =====
+// ===== 渲染 =====
 function renderAll() {
+  updateSelects();
   renderCalendar(appState.currentYear, appState.currentMonth);
   renderQuote();
   renderCountdown();
 }
 
-// ===== 日历渲染 =====
 function renderCalendar(year, month) {
   var grid = document.getElementById('daysGrid');
-  var titleEl = document.getElementById('monthYearText');
   var today = new Date();
   var todayStr = getDateStr(today.getFullYear(), today.getMonth() + 1, today.getDate());
-
-  titleEl.textContent = year + '年 ' + month + '月';
 
   var firstDay = new Date(year, month - 1, 1);
   var startDow = firstDay.getDay();
   var dim = daysInGregorianMonth(year, month);
   var dimPrev = daysInGregorianMonth(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1);
 
-  var html = '';
-  var maxRows = (appState.viewMode === 'week') ? 1 : 6;
+  // 用 DocumentFragment 减少重排
+  var frag = document.createDocumentFragment();
 
-  for (var row = 0; row < maxRows; row++) {
+  for (var row = 0; row < 6; row++) {
     for (var col = 0; col < 7; col++) {
       var ci = row * 7 + col;
       var cellDate, cellMonth, cellYear, isOther = false;
 
-      if (appState.viewMode === 'week') {
-        // 周视图：以今天所在周为基准
-        var todayDow = today.getDay();
-        var weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - todayDow);
-        var d = new Date(weekStart);
-        d.setDate(weekStart.getDate() + col);
-        cellYear = d.getFullYear();
-        cellMonth = d.getMonth() + 1;
-        cellDate = d.getDate();
-        isOther = (cellMonth !== month);
-      } else if (ci < startDow) {
+      if (ci < startDow) {
         var pm = month === 1 ? 12 : month - 1;
         var py = month === 1 ? year - 1 : year;
         cellDate = dimPrev - startDow + ci + 1;
@@ -193,7 +193,7 @@ function renderCalendar(year, month) {
         var st = getSolarTerm(cellYear, cellMonth, cellDate);
         var h = getHoliday(cellYear, cellMonth, cellDate);
         lunarDisplay = st ? st.name : getLunarDateDisplay(cellYear, cellMonth, cellDate);
-        if (h) holidayBadge = '<span class="holiday-badge">' + h.emoji + ' ' + h.name + '</span>';
+        if (h) holidayBadge = '<span class="holiday-badge">' + h.emoji + h.name + '</span>';
         var mood = getMood(dateStr);
         if (mood) moodEmoji = '<span class="mood-emoji">' + mood + '</span>';
         hasEvents = getEvents(dateStr).length > 0;
@@ -205,19 +205,23 @@ function renderCalendar(year, month) {
       if (isWeekend && !isOther) cls += ' weekend';
       if (holidayBadge && !isOther) cls += ' holiday';
 
-      html += '<div class="' + cls + '" data-date="' + dateStr + '" onclick="openModal(\'' + dateStr + '\')">' +
-        '<span class="solar-date">' + cellDate + '</span>' +
+      var cell = document.createElement('div');
+      cell.className = cls;
+      cell.setAttribute('data-date', dateStr);
+      cell.setAttribute('onclick', "openModal('" + dateStr + "')");
+      cell.innerHTML = '<span class="solar-date">' + cellDate + '</span>' +
         '<span class="lunar-date">' + lunarDisplay + '</span>' +
         holidayBadge + moodEmoji +
-        (hasEvents ? '<span class="event-dot"></span>' : '') +
-        '</div>';
+        (hasEvents ? '<span class="event-dot"></span>' : '');
+      frag.appendChild(cell);
     }
   }
-  grid.innerHTML = html;
-  grid.className = (appState.viewMode === 'week') ? 'days-grid view-mode-week' : 'days-grid';
+
+  grid.innerHTML = '';
+  grid.appendChild(frag);
 }
 
-// ===== 月份导航 =====
+// ===== 导航 =====
 function goToPrevMonth() {
   animateSlide('right', function() {
     if (appState.currentMonth === 1) { appState.currentMonth = 12; appState.currentYear--; }
@@ -241,7 +245,7 @@ function goToToday() {
 function animateSlide(dir, cb) {
   var grid = document.getElementById('daysGrid');
   grid.classList.add('slide-' + dir);
-  setTimeout(function() { cb(); grid.classList.remove('slide-' + dir); }, 150);
+  setTimeout(function() { cb(); grid.classList.remove('slide-' + dir); }, 120);
 }
 
 // ===== 触摸手势 =====
@@ -255,14 +259,10 @@ function initSwipeGesture() {
   grid.addEventListener('touchend', function(e) {
     var dx = e.changedTouches[0].clientX - touchStartX;
     var dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
       if (dx > 0) goToPrevMonth(); else goToNextMonth();
-      lightHaptic();
     }
   });
-}
-function lightHaptic() {
-  if (navigator.vibrate) navigator.vibrate(10);
 }
 
 // ===== 弹窗 =====
@@ -270,10 +270,10 @@ function openModal(dateStr) {
   modalOpenDate = dateStr;
   var parts = dateStr.split('-');
   var y = parseInt(parts[0]), m = parseInt(parts[1]), d = parseInt(parts[2]);
-  var wdNames = ['日','一','二','三','四','五','六'];
+  var wd = ['日','一','二','三','四','五','六'];
   var dobj = new Date(y, m - 1, d);
   document.getElementById('modalDateDisplay').textContent =
-    y + '年' + m + '月' + d + '日 星期' + wdNames[dobj.getDay()];
+    y + '年' + m + '月' + d + '日 星期' + wd[dobj.getDay()];
 
   var lunar = solarToLunar(y, m, d);
   var lunarStr = '农历 ' + getYearName(lunar.lunarYear) + ' ';
@@ -292,9 +292,10 @@ function openModal(dateStr) {
   renderEventList(dateStr);
   renderColorPicker();
   document.getElementById('eventInput').value = '';
-  document.getElementById('eventTimeInput').value = '';
-  document.getElementById('remindCheckbox').checked = false;
-
+  var ti = document.getElementById('eventTimeInput');
+  if (ti) ti.value = '';
+  var rc = document.getElementById('remindCheckbox');
+  if (rc) rc.checked = false;
   document.getElementById('modalOverlay').classList.add('active');
 }
 
@@ -305,68 +306,66 @@ function closeModal() {
 
 // ===== 心情 =====
 function renderMoodPicker(dateStr) {
-  var container = document.getElementById('moodPicker');
-  var current = getMood(dateStr);
-  var html = '';
+  var c = document.getElementById('moodPicker');
+  var cur = getMood(dateStr);
+  c.innerHTML = '';
   MOOD_EMOJIS.forEach(function(emoji) {
-    var sel = emoji === current ? ' selected' : '';
-    html += '<button class="mood-btn' + sel + '" onclick="selectMood(\'' + dateStr + '\',\'' + emoji + '\')">' + emoji + '</button>';
+    var b = document.createElement('button');
+    b.className = 'mood-btn' + (emoji === cur ? ' selected' : '');
+    b.textContent = emoji;
+    b.onclick = function() { selectMood(dateStr, emoji); };
+    c.appendChild(b);
   });
-  container.innerHTML = html;
 }
 function selectMood(dateStr, emoji) {
   setMood(dateStr, getMood(dateStr) === emoji ? '' : emoji);
   renderMoodPicker(dateStr);
-  lightHaptic();
 }
 
 // ===== 事件列表 =====
 function renderEventList(dateStr) {
-  var container = document.getElementById('eventList');
+  var c = document.getElementById('eventList');
   var events = getEvents(dateStr);
-  if (events.length === 0) {
-    container.innerHTML = '<li class="event-item" style="color:var(--text-muted);justify-content:center;">暂无备忘~ ✨</li>';
+  if (!events.length) {
+    c.innerHTML = '<li class="event-item" style="color:var(--text-muted);justify-content:center;">暂无备忘~ ✨</li>';
     return;
   }
-  var html = '';
+  c.innerHTML = '';
   events.forEach(function(evt) {
-    var timeBadge = evt.time ? '<span class="event-time-badge">' + (evt.remind ? '⏰ ' : '') + evt.time + '</span>' : '';
-    html += '<li class="event-item">' +
-      '<span class="event-color-dot" style="background:' + evt.color + ';"></span>' +
-      '<span class="event-text">' + escapeHtml(evt.text) + '</span>' +
-      timeBadge +
-      '<button class="event-delete" onclick="deleteEventAndRefresh(\'' + dateStr + '\',\'' + evt.id + '\')">✕</button>' +
-      '</li>';
+    var li = document.createElement('li');
+    li.className = 'event-item';
+    var timeHtml = evt.time ? '<span class="event-time-badge">' + (evt.remind ? '⏰' : '') + evt.time + '</span>' : '';
+    li.innerHTML = '<span class="event-color-dot" style="background:' + evt.color + ';"></span>' +
+      '<span class="event-text">' + escapeHtml(evt.text) + '</span>' + timeHtml +
+      '<button class="event-delete">✕</button>';
+    li.querySelector('.event-delete').onclick = function() { deleteEventAndRefresh(dateStr, evt.id); };
+    c.appendChild(li);
   });
-  container.innerHTML = html;
 }
 function renderColorPicker() {
   var c = document.getElementById('eventColorRow');
-  var html = '';
+  c.innerHTML = '';
   EVENT_COLORS.forEach(function(color) {
-    var sel = color === appState.selectedColor ? ' selected' : '';
-    html += '<button class="color-dot-btn' + sel + '" style="background:' + color + ';" onclick="selectColor(\'' + color + '\')"></button>';
+    var b = document.createElement('button');
+    b.className = 'color-dot-btn' + (color === appState.selectedColor ? ' selected' : '');
+    b.style.background = color;
+    b.onclick = function() { appState.selectedColor = color; renderColorPicker(); };
+    c.appendChild(b);
   });
-  c.innerHTML = html;
 }
-function selectColor(color) { appState.selectedColor = color; renderColorPicker(); }
 
 function saveNewEvent() {
   var input = document.getElementById('eventInput');
   var text = input.value.trim();
   if (!text || !modalOpenDate) return;
-  var timeInput = document.getElementById('eventTimeInput');
-  var remindCheck = document.getElementById('remindCheckbox');
-  var time = timeInput ? timeInput.value : '';
-  var remind = remindCheck ? remindCheck.checked : false;
-
-  addEvent(modalOpenDate, text, appState.selectedColor, time, remind);
+  var ti = document.getElementById('eventTimeInput');
+  var rc = document.getElementById('remindCheckbox');
+  addEvent(modalOpenDate, text, appState.selectedColor, ti ? ti.value : '', rc ? rc.checked : false);
   input.value = '';
-  if (timeInput) timeInput.value = '';
-  if (remindCheck) remindCheck.checked = false;
+  if (ti) ti.value = '';
+  if (rc) rc.checked = false;
   renderEventList(modalOpenDate);
   renderCalendar(appState.currentYear, appState.currentMonth);
-  lightHaptic();
 }
 function deleteEventAndRefresh(dateStr, eventId) {
   deleteEvent(dateStr, eventId);
@@ -377,7 +376,7 @@ function deleteEventAndRefresh(dateStr, eventId) {
 // ===== 每日一言 =====
 function renderQuote() {
   var q = getDailyQuote();
-  document.getElementById('quoteText').textContent = '“' + q.text + '”';
+  document.getElementById('quoteText').textContent = '"' + q.text + '"';
   document.getElementById('quoteAuthor').textContent = '—— ' + q.author;
 }
 
@@ -388,7 +387,6 @@ function renderCountdown() {
     '距离 ' + next.emoji + ' ' + next.name + ' 还有 ' + next.daysUntil + ' 天';
 }
 
-// ===== 工具 =====
 function escapeHtml(str) {
   var div = document.createElement('div');
   div.textContent = str;
