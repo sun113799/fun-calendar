@@ -1,0 +1,8 @@
+{
+  "appId": "com.fun.calendar",
+  "appName": "趣味日历",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

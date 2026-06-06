@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>🌸 趣味日历</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- PWA Meta -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF9AA2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="趣味日历">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+</head>
+<body>
+  <!-- 花瓣背景画布 -->
+  <canvas id="petalCanvas"></canvas>
+
+  <!-- 主容器 -->
+  <div class="app-container">
+    <!-- 头部 -->
+    <header class="app-header">
+      <h1 class="app-title">🌸 趣味日历</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="settings-btn" id="settingsBtn" title="设置">⚙️</button>
+        <button class="theme-toggle" id="themeToggle" title="切换暗色模式">🌙</button>
+      </div>
+    </header>
+
+    <!-- 日历卡片 -->
+    <div class="calendar-card">
+      <!-- 月份导航 -->
+      <div class="calendar-nav">
+        <button class="nav-btn prev-btn" title="上一月">◀</button>
+        <div class="month-year-display">
+          <span class="month-year-text" id="monthYearText">2026年 6月</span>
+        </div>
+        <button class="nav-btn next-btn" title="下一月">▶</button>
+        <button class="today-btn" id="todayBtn">今天</button>
+      </div>
+
+      <!-- 星期表头 -->
+      <div class="weekday-row">
+        <span class="weekday weekend">日</span>
+        <span class="weekday">一</span>
+        <span class="weekday">二</span>
+        <span class="weekday">三</span>
+        <span class="weekday">四</span>
+        <span class="weekday">五</span>
+        <span class="weekday weekend">六</span>
+      </div>
+
+      <!-- 日期格子容器 -->
+      <div class="days-grid" id="daysGrid">
+        <!-- JS 动态渲染 42 个格子 -->
+      </div>
+    </div>
+
+    <!-- 每日一言 -->
+    <div class="quote-card" id="quoteCard">
+      <p class="quote-text" id="quoteText"></p>
+      <p class="quote-author" id="quoteAuthor"></p>
+    </div>
+
+    <!-- 节日倒计时 -->
+    <div class="countdown-bar" id="countdownBar">
+      <span id="countdownText"></span>
+    </div>
+
+    <!-- 设置面板（默认隐藏） -->
+    <div class="settings-panel" id="settingsPanel">
+      <button class="settings-btn-inner btn-export" onclick="downloadBackup()">📥 导出数据备份</button>
+      <label class="import-label">
+        📤 导入数据备份
+        <input type="file" accept=".json" onchange="handleFileImport(event)">
+      </label>
+    </div>
+  </div>
+
+  <!-- 日期详情弹窗（默认隐藏） -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card" id="modalCard">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-date-display" id="modalDateDisplay"></div>
+      <div class="modal-lunar-info" id="modalLunarInfo"></div>
+      <div class="modal-holiday-info" id="modalHolidayInfo"></div>
+
+      <!-- 心情选择 -->
+      <div class="modal-section">
+        <label class="modal-label">今日心情</label>
+        <div class="mood-picker" id="moodPicker">
+          <!-- emoji 按钮 JS 生成 -->
+        </div>
+      </div>
+
+      <!-- 事件列表 -->
+      <div class="modal-section">
+        <label class="modal-label">备忘</label>
+        <ul class="event-list" id="eventList">
+          <!-- JS 动态渲染 -->
+        </ul>
+      </div>
+
+      <!-- 添加事件 -->
+      <div class="modal-section add-event-section">
+        <input type="text" class="event-input" id="eventInput" placeholder="写点什么..." maxlength="100">
+        <div class="event-time-row">
+          <input type="time" class="event-time-input" id="eventTimeInput">
+          <label class="remind-toggle">
+            <input type="checkbox" id="remindCheckbox">
+            <span>⏰ 提醒</span>
+          </label>
+        </div>
+        <div class="event-color-row" id="eventColorRow">
+          <!-- 颜色选择按钮 JS 生成 -->
+        </div>
+        <button class="btn-save" id="btnSaveEvent">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移动端底部导航 -->
+  <nav class="mobile-nav">
+    <button class="mobile-nav-btn active" onclick="goToToday();renderAll();">
+      <span class="nav-icon">📅</span> 今天
+    </button>
+    <button class="mobile-nav-btn" onclick="goToPrevMonth();">
+      <span class="nav-icon">◀</span> 上月
+    </button>
+    <button class="mobile-nav-btn" onclick="goToNextMonth();">
+      <span class="nav-icon">▶</span> 下月
+    </button>
+    <button class="mobile-nav-btn" onclick="downloadBackup()">
+      <span class="nav-icon">📥</span> 备份
+    </button>
+  </nav>
+
+  <!-- JS 脚本：依赖顺序不能乱 -->
+  <script src="js/lunar.js"></script>
+  <script src="js/solarTerms.js"></script>
+  <script src="js/holidays.js"></script>
+  <script src="js/quotes.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

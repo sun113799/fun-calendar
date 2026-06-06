@@ -1,0 +1,571 @@
+/* ===== 趣味日历 v2 —— 毛玻璃 (Glassmorphism) 主题 ===== */
+
+:root {
+  /* 动态渐变背景 */
+  --bg-start: #FFE0E0;
+  --bg-mid: #FFE8F0;
+  --bg-end: #FFF0F5;
+
+  /* 毛玻璃卡片 */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px rgba(255, 154, 162, 0.12);
+  --glass-blur: 16px;
+
+  /* 文字 */
+  --text-primary: #4A3B3C;
+  --text-secondary: #8B7B7C;
+  --text-muted: #BAAAAA;
+
+  /* 强调色 */
+  --accent: #FF7B8A;
+  --accent-light: #FFB3BA;
+  --accent-glow: rgba(255, 123, 138, 0.3);
+
+  /* 圆角 */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  /* 杂项 */
+  --font: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== 暗色模式 ===== */
+[data-theme="dark"] {
+  --bg-start: #1a1025;
+  --bg-mid: #1a1530;
+  --bg-end: #151025;
+  --glass-bg: rgba(30, 20, 40, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --text-primary: #E8DDE8;
+  --text-secondary: #A090A0;
+  --text-muted: #6A5A6A;
+  --accent: #FFB3BA;
+  --accent-light: #FF8A95;
+  --accent-glow: rgba(255, 179, 186, 0.25);
+}
+
+/* ===== 全局重置 ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-family: var(--font);
+  color: var(--text-primary);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+body {
+  background: linear-gradient(135deg,
+    var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: env(safe-area-inset-top, 16px)
+           env(safe-area-inset-right, 16px)
+           env(safe-area-inset-bottom, 90px)
+           env(safe-area-inset-left, 16px);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ===== 花瓣画布 ===== */
+#petalCanvas {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+
+/* ===== 主容器 ===== */
+.app-container {
+  position: relative; z-index: 1;
+  max-width: 520px; width: 100%;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* ===== 头部 ===== */
+.app-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 4px;
+}
+
+.app-title {
+  font-size: 26px; font-weight: 700;
+  color: var(--accent); letter-spacing: 2px;
+  text-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.theme-toggle {
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 18px; cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.theme-toggle:hover { transform: scale(1.1); box-shadow: var(--glass-shadow); }
+.theme-toggle:active { transform: scale(0.93); }
+
+/* ===== 毛玻璃卡片通用 ===== */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+/* ===== 日历卡片 ===== */
+.calendar-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: 18px;
+  transition: background 0.5s ease, box-shadow var(--transition);
+}
+
+/* ===== 月份导航 ===== */
+.calendar-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; gap: 6px;
+}
+
+.nav-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-primary); font-size: 14px; cursor: pointer;
+  transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-btn:hover { background: var(--accent); color: white; border-color: var(--accent); transform: scale(1.1); }
+.nav-btn:active { transform: scale(0.93); }
+
+.month-year-text {
+  font-size: 19px; font-weight: 700;
+  color: var(--text-primary); min-width: 140px; text-align: center;
+}
+
+.today-btn {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--accent-light);
+  background: transparent; color: var(--accent);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all var(--transition);
+}
+.today-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+.today-btn:active { transform: scale(0.93); }
+
+/* ===== 设置按钮 ===== */
+.settings-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 16px; cursor: pointer;
+  transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.settings-btn:hover { transform: scale(1.1); box-shadow: var(--glass-shadow); }
+
+/* ===== 星期表头 ===== */
+.weekday-row {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  text-align: center; margin-bottom: 6px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.weekday { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.weekday.weekend { color: var(--accent); }
+
+/* ===== 日期网格 ===== */
+.days-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.day-cell {
+  aspect-ratio: 1;
+  background: var(--glass-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  transition: all var(--transition);
+  font-size: 13px; user-select: none;
+}
+.day-cell:hover {
+  border-color: var(--accent-light);
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+.day-cell:active { transform: scale(0.93); }
+
+.day-cell .solar-date {
+  font-weight: 600; font-size: 15px; color: var(--text-primary);
+}
+.day-cell .lunar-date {
+  font-size: 10px; color: var(--text-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.day-cell .holiday-badge {
+  font-size: 9px; color: var(--accent); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%; padding: 0 2px;
+}
+.day-cell .mood-emoji { position: absolute; top: 2px; right: 3px; font-size: 10px; }
+.day-cell .event-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent); position: absolute; bottom: 3px;
+}
+
+/* 其他月份 */
+.day-cell.other-month { opacity: 0.25; pointer-events: none; }
+
+/* 今天 */
+.day-cell.today {
+  background: var(--accent) !important;
+  border: none !important;
+  box-shadow: 0 4px 20px var(--accent-glow);
+  animation: todayGlow 2s ease-in-out infinite;
+}
+.day-cell.today .solar-date,
+.day-cell.today .lunar-date,
+.day-cell.today .holiday-badge { color: white !important; }
+.day-cell.today .event-dot { background: white; }
+
+/* 周末 */
+.day-cell.weekend .solar-date { color: var(--accent); }
+.day-cell.today.weekend .solar-date { color: white !important; }
+
+/* 节日 */
+.day-cell.holiday {
+  background: linear-gradient(135deg, rgba(255, 240, 240, 0.7), rgba(255, 232, 232, 0.7));
+  border-color: var(--accent-light);
+}
+[data-theme="dark"] .day-cell.holiday {
+  background: linear-gradient(135deg, rgba(40, 20, 40, 0.7), rgba(50, 20, 40, 0.7));
+}
+
+/* ===== 每日一言卡片 ===== */
+.quote-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  padding: 14px 18px; text-align: center;
+  border-left: 3px solid var(--accent-light);
+  transition: background 0.5s ease;
+}
+.quote-text { font-size: 14px; font-style: italic; color: var(--text-primary); line-height: 1.6; }
+.quote-author { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+
+/* ===== 倒计时栏 ===== */
+.countdown-bar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  padding: 10px 18px; text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+
+/* ===== 弹窗遮罩 ===== */
+.modal-overlay {
+  display: none; position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 100; justify-content: center; align-items: center;
+}
+.modal-overlay.active { display: flex; }
+
+/* ===== 弹窗卡片 ===== */
+.modal-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+  padding: 22px; max-width: 400px; width: 90%;
+  max-height: 82vh; overflow-y: auto;
+  position: relative;
+  animation: modalSlideIn 0.3s ease;
+}
+
+.modal-close {
+  position: absolute; top: 12px; right: 14px;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: var(--glass-bg);
+  color: var(--text-secondary); font-size: 15px; cursor: pointer;
+  transition: transform var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { transform: scale(1.15); color: var(--accent); }
+
+.modal-date-display { font-size: 19px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.modal-lunar-info { font-size: 13px; color: var(--text-secondary); margin-bottom: 2px; }
+.modal-holiday-info { font-size: 15px; color: var(--accent); font-weight: 600; margin-bottom: 14px; min-height: 20px; }
+
+/* 弹窗分区 */
+.modal-section { margin-bottom: 14px; }
+.modal-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+
+/* 心情选择 */
+.mood-picker { display: flex; gap: 5px; flex-wrap: wrap; }
+.mood-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--glass-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: 17px; cursor: pointer;
+  transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.mood-btn:hover { transform: scale(1.2); }
+.mood-btn.selected { border-color: var(--accent); background: var(--accent-glow); }
+.mood-btn:active { animation: moodPop 0.3s ease; }
+
+/* 事件列表 */
+.event-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.event-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  animation: fadeInItem 0.3s ease;
+}
+.event-color-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.event-text { flex: 1; color: var(--text-primary); }
+.event-time-badge {
+  font-size: 11px; color: var(--accent); font-weight: 600;
+  background: var(--accent-glow); padding: 2px 6px; border-radius: 8px;
+}
+.event-delete {
+  width: 22px; height: 22px; border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer; font-size: 13px; border-radius: 50%;
+  transition: color var(--transition), background var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.event-delete:hover { color: var(--accent); background: var(--glass-bg); }
+
+/* 添加事件 */
+.add-event-section { display: flex; flex-direction: column; gap: 8px; }
+.event-input {
+  padding: 10px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-family: var(--font);
+  background: var(--glass-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--text-primary); outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.event-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+/* 时间选择 + 提醒开关行 */
+.event-time-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.event-time-input {
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--text-primary); font-family: var(--font); font-size: 13px;
+  outline: none; width: 110px;
+}
+.event-time-input:focus { border-color: var(--accent); }
+.remind-toggle {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  user-select: none;
+}
+.remind-toggle input[type="checkbox"] { accent-color: var(--accent); }
+
+.event-color-row { display: flex; gap: 7px; }
+.color-dot-btn {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer;
+  transition: transform var(--transition);
+}
+.color-dot-btn:hover { transform: scale(1.2); }
+.color-dot-btn.selected { border-color: var(--text-primary); }
+
+.btn-save {
+  padding: 10px 20px; border-radius: 20px; border: none;
+  background: var(--accent); color: white;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.btn-save:hover { transform: scale(1.05); box-shadow: 0 4px 16px var(--accent-glow); }
+.btn-save:active { transform: scale(0.93); }
+
+/* ===== 设置面板 ===== */
+.settings-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  padding: 14px; display: none; flex-direction: column; gap: 8px;
+}
+.settings-panel.active { display: flex; }
+
+.settings-btn-inner {
+  padding: 10px 16px; border-radius: var(--radius-sm); border: none;
+  font-size: 13px; font-family: var(--font); cursor: pointer;
+  transition: all var(--transition); text-align: left;
+}
+.btn-export { background: var(--glass-bg); color: var(--text-primary); border: 1px solid var(--glass-border); }
+.btn-export:hover { background: var(--accent); color: white; }
+
+.import-label {
+  padding: 10px 16px; border-radius: var(--radius-sm);
+  background: var(--glass-bg); color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  font-size: 13px; cursor: pointer; text-align: left;
+  transition: all var(--transition);
+}
+.import-label:hover { background: var(--accent); color: white; }
+.import-label input { display: none; }
+
+/* ===== PWA 安装横幅 ===== */
+.install-banner {
+  position: fixed; bottom: 120px; left: 50%;
+  transform: translateX(-50%); z-index: 200;
+  padding: 14px 20px; display: flex; align-items: center; gap: 10px;
+  animation: modalSlideIn 0.4s ease; white-space: nowrap;
+  font-size: 14px;
+}
+.btn-install {
+  padding: 8px 16px; border-radius: 20px; border: none;
+  background: var(--accent); color: white;
+  font-weight: 600; cursor: pointer; font-family: var(--font); font-size: 13px;
+}
+.btn-dismiss {
+  padding: 8px 12px; border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer; font-family: var(--font); font-size: 13px;
+}
+
+/* ===== 移动端底部导航 ===== */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0));
+  justify-content: space-around; align-items: center;
+}
+@media (max-width: 640px) {
+  .mobile-nav { display: flex; }
+}
+.mobile-nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  border: none; background: none; color: var(--text-secondary);
+  font-size: 10px; font-family: var(--font); cursor: pointer;
+  padding: 4px 10px; border-radius: 10px;
+  transition: all var(--transition);
+}
+.mobile-nav-btn.active { color: var(--accent); background: rgba(255, 123, 138, 0.1); }
+.mobile-nav-btn .nav-icon { font-size: 20px; }
+
+/* ===== 周视图格子（更大） ===== */
+.view-mode- week .day-cell {
+  aspect-ratio: auto; min-height: 90px;
+  justify-content: flex-start; padding: 6px;
+}
+.view-mode-week .day-cell .event-preview {
+  font-size: 10px; color: var(--accent);
+  margin-top: 2px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 100%;
+}
+
+/* ===== 动画关键帧 ===== */
+@keyframes modalSlideIn {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes todayGlow {
+  0%, 100% { box-shadow: 0 4px 20px var(--accent-glow); }
+  50% { box-shadow: 0 4px 36px rgba(255, 123, 138, 0.45); }
+}
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.day-cell.holiday::before {
+  content: '✨'; position: absolute; top: -4px; right: -2px;
+  font-size: 7px; animation: sparkle 1.5s ease-in-out infinite;
+}
+.day-cell.holiday::after {
+  content: '✨'; position: absolute; bottom: 0; left: 2px;
+  font-size: 5px; animation: sparkle 1.5s ease-in-out 0.75s infinite;
+}
+@keyframes fadeInItem {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes moodPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* 翻月滑动 */
+.days-grid.slide-left  { animation: slideOutLeft 0.15s ease-in forwards; }
+.days-grid.slide-right { animation: slideOutRight 0.15s ease-in forwards; }
+@keyframes slideOutLeft  { to { transform: translateX(-30px); opacity: 0; } }
+@keyframes slideOutRight { to { transform: translateX(30px); opacity: 0; } }
+
+/* ===== 弹窗滚动条美化 ===== */
+.modal-card::-webkit-scrollbar { width: 5px; }
+.modal-card::-webkit-scrollbar-track { background: transparent; }
+.modal-card::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 3px; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 440px) {
+  .app-container { max-width: 100%; gap: 10px; }
+  .calendar-card { padding: 12px; border-radius: var(--radius-md); }
+  .day-cell { font-size: 11px; }
+  .day-cell .solar-date { font-size: 14px; }
+  .day-cell .lunar-date { font-size: 8px; }
+  .day-cell .holiday-badge { font-size: 7px; }
+  .month-year-text { font-size: 17px; min-width: 120px; }
+  .app-title { font-size: 22px; }
+  .modal-card { padding: 16px; }
+}
