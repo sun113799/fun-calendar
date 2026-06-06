@@ -1,94 +1,124 @@
-// ===== 原生通知 — 保存事件时预定，系统到点自动弹出 =====
+// ===== 原生通知 v3 — 稳定预定 + 启动重排 + allowWhileIdle =====
 var _notifyPermitted = false;
+var _rescheduledOnce = false;
+
+/** 稳定通知 ID */
+function getEventNotificationId(eventId) {
+  var hash = 0;
+  var text = String(eventId || '');
+  for (var i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash % 2147483647) || 1;
+}
 
 /** 初始化：请求权限 */
 async function requestNotificationPermission() {
   try {
     if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications) {
       var plugin = Capacitor.Plugins.LocalNotifications;
-      // 请求权限
+      if (plugin.checkPermissions) {
+        var checked = await plugin.checkPermissions();
+        if (checked.display === 'granted') { _notifyPermitted = true; return true; }
+      }
       if (plugin.requestPermissions) {
         var result = await plugin.requestPermissions();
-        console.log('通知权限:', JSON.stringify(result));
         _notifyPermitted = (result.display === 'granted');
         return _notifyPermitted;
       }
-      _notifyPermitted = true;
-      return true;
+      _notifyPermitted = true; return true;
     }
-  } catch(e) {
-    console.log('Capacitor通知初始化失败:', e);
-  }
-  // 浏览器降级
-  if ('Notification' in window && Notification.permission === 'granted') return true;
-  if ('Notification' in window && Notification.permission === 'denied') return false;
+  } catch(e) { console.log('Capacitor通知初始化失败:', e); }
+
+  if ('Notification' in window && Notification.permission === 'granted') { _notifyPermitted = true; return true; }
+  if ('Notification' in window && Notification.permission === 'denied') { _notifyPermitted = false; return false; }
   if ('Notification' in window) {
     var r = await Notification.requestPermission();
-    return r === 'granted';
+    _notifyPermitted = (r === 'granted');
+    return _notifyPermitted;
   }
   return false;
 }
 
-/** 为事件预定系统通知 */
-function scheduleEventNotification(event, dateStr) {
-  if (!_notifyPermitted) return;
+/** 为事件预定系统通知（async，先申请权限再调度） */
+async function scheduleEventNotification(event, dateStr) {
   if (!event.remind || !event.time) return;
 
+  if (!_notifyPermitted) {
+    var granted = await requestNotificationPermission();
+    if (!granted) return;
+  }
+
   try {
-    // 解析日期+时间
     var parts = dateStr.split('-');
-    var y = parseInt(parts[0]);
-    var m = parseInt(parts[1]);
-    var d = parseInt(parts[2]);
-    var timeParts = event.time.split(':');
-    var h = parseInt(timeParts[0]);
-    var min = parseInt(timeParts[1]);
-
+    var y = parseInt(parts[0]), m = parseInt(parts[1]), d = parseInt(parts[2]);
+    var tp = event.time.split(':');
+    var h = parseInt(tp[0]), min = parseInt(tp[1]);
     var targetDate = new Date(y, m - 1, d, h, min, 0);
-
-    // 已经过了就不预定
     if (targetDate.getTime() <= Date.now()) return;
 
     if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications) {
-      Capacitor.Plugins.LocalNotifications.schedule({
+      var id = getEventNotificationId(event.id);
+      // 先取消同id旧通知避免重复
+      await Capacitor.Plugins.LocalNotifications.cancel({ notifications: [{ id: id }] });
+      // 预定新通知
+      await Capacitor.Plugins.LocalNotifications.schedule({
         notifications: [{
           title: event.text,
           body: '主人~ 你设的提醒到时间啦！',
-          id: parseInt(event.id.replace(/[^0-9]/g, '').slice(-8)) || Math.floor(Math.random() * 90000000 + 10000000),
-          schedule: { at: targetDate },
+          id: id,
+          schedule: { at: targetDate, allowWhileIdle: true },
           extra: { eventId: event.id, dateStr: dateStr }
         }]
-      }).then(function() {
-        console.log('预定通知成功: ' + event.text + ' @ ' + event.time);
-      }).catch(function(err) {
-        console.log('预定通知失败:', err);
       });
+      console.log('预定通知成功: ' + event.text + ' @ ' + event.time);
     }
-  } catch(e) {
-    console.log('预定通知异常:', e);
-  }
+  } catch(e) { console.log('预定通知异常:', e); }
 }
 
-/** 取消某个事件的通知 */
+/** 取消事件的通知 */
 function cancelEventNotification(eventId) {
-  if (!_notifyPermitted) return;
   try {
-    var id = parseInt(eventId.replace(/[^0-9]/g, '').slice(-8));
+    var id = getEventNotificationId(eventId);
     if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications) {
       Capacitor.Plugins.LocalNotifications.cancel({ notifications: [{ id: id }] });
     }
-  } catch(e) {}
+  } catch(e) { console.log('取消通知异常:', e); }
 }
 
-// 浏览器环境的polling降级（仅在浏览器中使用）
+/** 启动时重新调度所有未来提醒 */
+async function rescheduleAllEventNotifications() {
+  if (_rescheduledOnce) return;
+  _rescheduledOnce = true;
+  if (typeof loadData !== 'function') return;
+
+  var granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  var data = loadData();
+  var now = Date.now();
+
+  for (var dateStr in data.events) {
+    data.events[dateStr].forEach(function(event) {
+      if (!event.remind || !event.time) return;
+      var parts = dateStr.split('-');
+      var tp = event.time.split(':');
+      var targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), parseInt(tp[0]), parseInt(tp[1]), 0);
+      if (targetDate.getTime() > now) {
+        scheduleEventNotification(event, dateStr);
+      }
+    });
+  }
+}
+
+// ===== 浏览器降级 =====
 var _browserNotifyTimer = null;
 var _browserNotified = {};
 
 function startBrowserFallback() {
   if (_browserNotifyTimer) return;
-  if (typeof Capacitor !== 'undefined') return; // APK里不用polling
+  if (typeof Capacitor !== 'undefined') return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
   _browserNotifyTimer = setInterval(function() {
     var t = new Date();
     var ds = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
@@ -105,11 +135,16 @@ function startBrowserFallback() {
   }, 30000);
 }
 
+// 启动时：请求权限 → 重排所有提醒
 document.addEventListener('DOMContentLoaded', function() {
-  requestNotificationPermission();
+  requestNotificationPermission().then(function(granted) {
+    if (granted && typeof rescheduleAllEventNotifications === 'function') {
+      rescheduleAllEventNotifications();
+    }
+  });
   setTimeout(startBrowserFallback, 2000);
 });
 
-// 占位兼容函数
+// 兼容旧调用
 function startNotificationChecker() { requestNotificationPermission(); }
 function stopNotificationChecker() {}

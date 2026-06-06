@@ -170,6 +170,9 @@ function showInstallBanner() {
 function initNotifications() {
   if (typeof requestNotificationPermission === 'function') {
     requestNotificationPermission().then(function(granted) {
+      if (granted && typeof rescheduleAllEventNotifications === 'function') {
+        rescheduleAllEventNotifications();
+      }
       if (granted && typeof startNotificationChecker === 'function') startNotificationChecker();
     });
   }
@@ -410,6 +413,9 @@ function saveNewEvent() {
   renderCalendar(appState.currentYear, appState.currentMonth);
 }
 function deleteEventAndRefresh(dateStr, eventId) {
+  if (typeof cancelEventNotification === 'function') {
+    cancelEventNotification(eventId);
+  }
   deleteEvent(dateStr, eventId);
   renderEventList(dateStr);
   renderCalendar(appState.currentYear, appState.currentMonth);

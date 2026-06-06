@@ -177,10 +177,13 @@ function handleFileImport(event) {
           typeof appState !== 'undefined' ? appState.currentMonth : new Date().getMonth() + 1
         );
       }
+      // 重排导入的未来提醒
+      if (typeof rescheduleAllEventNotifications === 'function') {
+        rescheduleAllEventNotifications();
+      }
     } else {
       alert('导入失败：' + result.error);
     }
-    // 关闭设置面板
     var panel = document.getElementById('settingsPanel');
     if (panel) panel.classList.remove('active');
   };
