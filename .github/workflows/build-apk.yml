@@ -32,9 +32,6 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0'
 
-      - name: 初始化 Capacitor Android 项目
-        run: npx cap add android
-
       - name: 同步网页文件到 Android
         run: npx cap sync android
 
