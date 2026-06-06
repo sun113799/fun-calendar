@@ -400,8 +400,11 @@ function saveNewEvent() {
   if (!text || !modalOpenDate) return;
   var ti = document.getElementById('eventTimeInput');
   var rc = document.getElementById('remindCheckbox');
-  addEvent(modalOpenDate, text, appState.selectedColor, ti && ti.value ? ti.value : '', rc ? rc.checked : false);
-  // 先关弹窗再渲染
+  var evt = addEvent(modalOpenDate, text, appState.selectedColor, ti && ti.value ? ti.value : '', rc ? rc.checked : false);
+  // 预定系统通知
+  if (evt && evt.remind && typeof scheduleEventNotification === 'function') {
+    scheduleEventNotification(evt, modalOpenDate);
+  }
   var overlay = document.getElementById('modalOverlay');
   if (overlay) overlay.classList.remove('active');
   renderCalendar(appState.currentYear, appState.currentMonth);
