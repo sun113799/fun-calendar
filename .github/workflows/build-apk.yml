@@ -40,13 +40,22 @@ jobs:
       - name: 同步网页文件到 Android
         run: npx cap sync android
 
-      - name: 注入通知权限（防被杀）
+      - name: 注入通知保活权限（防被杀）
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # 在 <manifest> 标签内加权限
-          sed -i 's|<manifest xmlns:android|<!-- 通知保活权限 --><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/><uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/><uses-permission android:name="android.permission.WAKE_LOCK"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n<manifest xmlns:android|' "$MANIFEST"
-          echo "=== AndroidManifest permissions ==="
-          grep "uses-permission" "$MANIFEST"
+          python3 -c "
+          import re
+          with open('android/app/src/main/AndroidManifest.xml','r') as f:
+              manifest = f.read()
+          perms = '''    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\"/>
+              <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\"/>
+              <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\"/>
+              <uses-permission android:name=\"android.permission.WAKE_LOCK\"/>
+              <uses-permission android:name=\"android.permission.VIBRATE\"/>'''
+          manifest = manifest.replace('<application', perms + '\n    <application')
+          with open('android/app/src/main/AndroidManifest.xml','w') as f:
+              f.write(manifest)
+          print('Permissions injected')
+          "
 
       - name: 验证 www 文件是最新版
         run: |
