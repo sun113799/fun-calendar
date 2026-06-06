@@ -120,6 +120,9 @@ function downloadBackup() {
   a.download = '趣味日历备份_' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
   URL.revokeObjectURL(url);
+  // 关闭设置面板
+  var panel = document.getElementById('settingsPanel');
+  if (panel) panel.classList.remove('active');
 }
 
 /** 从 JSON 字符串导入（合并，去重） */
@@ -168,7 +171,6 @@ function handleFileImport(event) {
     var result = importData(e.target.result);
     if (result.success) {
       alert('导入成功！已合并 ' + result.count + ' 条事件');
-      // 刷新日历
       if (typeof renderCalendar === 'function') {
         renderCalendar(
           typeof appState !== 'undefined' ? appState.currentYear : new Date().getFullYear(),
@@ -178,6 +180,9 @@ function handleFileImport(event) {
     } else {
       alert('导入失败：' + result.error);
     }
+    // 关闭设置面板
+    var panel = document.getElementById('settingsPanel');
+    if (panel) panel.classList.remove('active');
   };
   reader.readAsText(file);
   event.target.value = ''; // 允许重复选同一个文件

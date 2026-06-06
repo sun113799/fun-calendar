@@ -78,25 +78,64 @@ function updateSelects() {
   document.getElementById('monthSelect').value = appState.currentMonth;
 }
 
-// ===== 主题 =====
+// ===== 6 主题（夜色独立暗色） =====
+var THEMES = ['sakura', 'ocean', 'starry', 'forest', 'sunset'];
+var THEME_LABELS = { sakura:'S', ocean:'O', starry:'T', forest:'F', sunset:'U' };
+
 function initTheme() {
-  var saved = localStorage.getItem('fun_calendar_theme');
-  if (saved === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    document.getElementById('themeToggle').textContent = '☀️';
-  }
-  document.getElementById('themeToggle').addEventListener('click', function() {
-    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-      document.documentElement.removeAttribute('data-theme');
-      document.getElementById('themeToggle').textContent = '🌙';
-      localStorage.setItem('fun_calendar_theme', 'light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.getElementById('themeToggle').textContent = '☀️';
-      localStorage.setItem('fun_calendar_theme', 'dark');
+  var saved = localStorage.getItem('fun_calendar_theme') || 'sakura';
+  document.documentElement.setAttribute('data-theme', saved);
+  updateDarkBtnIcon(saved === 'night');
+
+  // 主题循环（5个亮色主题）
+  document.getElementById('themeBtn').addEventListener('click', function() {
+    var cur = document.documentElement.getAttribute('data-theme') || 'sakura';
+    // 如果在夜色，先切回之前的主题
+    if (cur === 'night') {
+      cur = localStorage.getItem('fun_calendar_last_light') || 'sakura';
     }
+    var idx = THEMES.indexOf(cur);
+    var next = THEMES[(idx + 1) % THEMES.length];
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('fun_calendar_theme', next);
+    localStorage.setItem('fun_calendar_last_light', next);
+    updateDarkBtnIcon(false);
+    resetEffects();
   });
+
+  // 夜色切换
+  document.getElementById('darkBtn').addEventListener('click', function() {
+    var cur = document.documentElement.getAttribute('data-theme') || 'sakura';
+    if (cur === 'night') {
+      // 切回之前的亮色主题
+      var prev = localStorage.getItem('fun_calendar_last_light') || 'sakura';
+      document.documentElement.setAttribute('data-theme', prev);
+      localStorage.setItem('fun_calendar_theme', prev);
+      updateDarkBtnIcon(false);
+    } else {
+      // 切到夜色
+      localStorage.setItem('fun_calendar_last_light', cur);
+      document.documentElement.setAttribute('data-theme', 'night');
+      localStorage.setItem('fun_calendar_theme', 'night');
+      updateDarkBtnIcon(true);
+    }
+    resetEffects();
+  });
+}
+
+function updateDarkBtnIcon(isNight) {
+  document.getElementById('darkBtn').textContent = isNight ? '☀️' : '🌙';
+}
+
+function resetEffects() {
+  setTimeout(function() {
+    if (typeof _effectInstance !== 'undefined' && _effectInstance && _effectInstance.resetAll) {
+      _effectInstance.resetAll();
+    }
+    if (typeof petalEffectInstance !== 'undefined' && petalEffectInstance && petalEffectInstance.resetAll) {
+      petalEffectInstance.resetAll();
+    }
+  }, 200);
 }
 
 // ===== PWA =====
@@ -356,15 +395,15 @@ function renderColorPicker() {
 
 function saveNewEvent() {
   var input = document.getElementById('eventInput');
+  if (!input) return;
   var text = input.value.trim();
   if (!text || !modalOpenDate) return;
   var ti = document.getElementById('eventTimeInput');
   var rc = document.getElementById('remindCheckbox');
-  addEvent(modalOpenDate, text, appState.selectedColor, ti ? ti.value : '', rc ? rc.checked : false);
-  input.value = '';
-  if (ti) ti.value = '';
-  if (rc) rc.checked = false;
-  renderEventList(modalOpenDate);
+  addEvent(modalOpenDate, text, appState.selectedColor, ti && ti.value ? ti.value : '', rc ? rc.checked : false);
+  // 先关弹窗再渲染
+  var overlay = document.getElementById('modalOverlay');
+  if (overlay) overlay.classList.remove('active');
   renderCalendar(appState.currentYear, appState.currentMonth);
 }
 function deleteEventAndRefresh(dateStr, eventId) {

@@ -720,31 +720,37 @@ for (var i = 0; i < QUOTES.length; i++) {
 QUOTES = _uniq;
 
 // 每天随机取3条（不重复）
-var _dailyQuotes = null;
-var _dailyDate = '';
+// 用 localStorage 存当天的3条，跨 App 重启也保持一致
+var STORAGE_KEY_QUOTES = 'fun_calendar_daily_quotes';
 
 function getDailyQuote() {
   var today = new Date();
   var dateKey = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
 
-  // 同一天返回同样的3条
-  if (_dailyQuotes && _dailyDate === dateKey) {
-    // 随机排列
-    return _dailyQuotes[Math.floor(Math.random() * 3)];
+  // 从 localStorage 读取当天已选定的3条
+  var stored = null;
+  try { stored = JSON.parse(localStorage.getItem(STORAGE_KEY_QUOTES)); } catch(e) {}
+
+  if (stored && stored.date === dateKey && stored.quotes && stored.quotes.length === 3) {
+    // 当天已选定，随机返回1条
+    return stored.quotes[Math.floor(Math.random() * stored.quotes.length)];
   }
 
-  // 新的一天，重新选3条
+  // 新的一天：随机从池子里选10条
   var pool = QUOTES.slice();
   var selected = [];
-  for (var i = 0; i < 3 && pool.length > 0; i++) {
+  for (var i = 0; i < 10 && pool.length > 0; i++) {
     var idx = Math.floor(Math.random() * pool.length);
     selected.push(pool[idx]);
     pool.splice(idx, 1);
   }
-  _dailyQuotes = selected;
-  _dailyDate = dateKey;
 
-  return selected[Math.floor(Math.random() * 3)];
+  // 存入 localStorage
+  try {
+    localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify({ date: dateKey, quotes: selected }));
+  } catch(e) {}
+
+  return selected[Math.floor(Math.random() * 10)];
 }
 
 console.log('QUOTES 总计: ' + QUOTES.length + ' 条');
