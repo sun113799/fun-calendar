@@ -731,34 +731,26 @@ function getDailyQuote() {
   var stored = null;
   try { stored = JSON.parse(localStorage.getItem(STORAGE_KEY_QUOTES)); } catch(e) {}
 
-  if (stored && stored.date === dateKey && stored.quotes && stored.quotes.length > 0) {
-    return stored.quotes[_curQuoteIndex % stored.quotes.length];
+  if (stored && stored.date === dateKey && stored.quotes && stored.quotes.length === 3) {
+    // 当天已选定，随机返回1条
+    return stored.quotes[Math.floor(Math.random() * stored.quotes.length)];
   }
 
-  // 新的一天：随机选10条
+  // 新的一天：随机从池子里选10条
   var pool = QUOTES.slice();
   var selected = [];
-  var n = Math.min(10, pool.length);
-  for (var i = 0; i < n; i++) {
+  for (var i = 0; i < 10 && pool.length > 0; i++) {
     var idx = Math.floor(Math.random() * pool.length);
     selected.push(pool[idx]);
     pool.splice(idx, 1);
   }
 
-  _curQuoteIndex = 0;
+  // 存入 localStorage
   try {
     localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify({ date: dateKey, quotes: selected }));
   } catch(e) {}
 
-  return selected[0];
+  return selected[Math.floor(Math.random() * 10)];
 }
-
-// App切回前台时换下一条
-document.addEventListener('visibilitychange', function() {
-  if (!document.hidden && typeof renderQuote === 'function') {
-    _curQuoteIndex++;
-    renderQuote();
-  }
-});
 
 console.log('QUOTES 总计: ' + QUOTES.length + ' 条');

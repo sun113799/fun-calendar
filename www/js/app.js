@@ -36,6 +36,12 @@ function bindEvents() {
   document.getElementById('eventInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') saveNewEvent();
   });
+  var sb = document.getElementById('settingsBtn');
+  if (sb) {
+    sb.addEventListener('click', function() {
+      document.getElementById('settingsPanel').classList.toggle('active');
+    });
+  }
 }
 
 /** 初始化年月下拉选择器 */
